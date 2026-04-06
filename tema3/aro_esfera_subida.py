@@ -1,13 +1,12 @@
-'''En la caida, rodando sin deslizar, la componente tangencial del peso
-es la responsable de la aceleración, como ruedan sin deslizar, a la vez
-que se genera velocidad lineal se genera angular y el momento de inercia
-del aro es mayor por lo que le cuesta más ganar velocidad angular (que
-limita la lineal por la condición de rodadura pura)'''
-
+''' Si ambos tienen la misma velocidad y giran sin deslizar, ahora la componente
+tangencial del peso crea un par que frena el giro. El par es el mismo para
+los dos, puesto que la masa es la misma, pero el momento de inercia del aro
+es mayor y, por tanto, tarda más en pararse'''
 
 import pymunk
 import pymunk.pygame_util
 import pygame
+from pymunk import Vec2d
 import math
 
 # --- PARÁMETROS ---
@@ -37,22 +36,27 @@ def setup_simulation():
         seg.filter = pymunk.ShapeFilter(group=col_group)
         space.add(seg)
 
-        muro = pymunk.Segment(space.static_body, p_baja, (p_baja[0], p_baja[1] - 100), 5)
-        space.add(muro)
+       # muro = pymunk.Segment(space.static_body, p_baja, (p_baja[0], p_baja[1] - 100), 5)
+       # space.add(muro)
 
         dx, dy = p_baja[0] - p_alta[0], p_baja[1] - p_alta[1]
         dist = math.sqrt(dx**2 + dy**2)
         u = (dx/dist, dy/dist)
         n = (-u[1], u[0])
-        return p_alta, u, n
+        return Vec2d(*p_alta),Vec2d(*p_baja), u, n
 
+
+    speed=700
     # --- ESFERA MACIZA ---
-    p_a1, u1, n1 = crear_pista(100, 1)
+    p_a1, p_b1, u1, n1 = crear_pista(100, 1)
 
     i_esfera = (2/5) * MASA * (RADIO**2)
 
     body_s = pymunk.Body(MASA, i_esfera)
-    body_s.position = (p_a1[0] + n1[0]*RADIO, p_a1[1] + n1[1]*RADIO)
+    body_s.position = (p_b1[0] + n1[0]*RADIO, p_b1[1] + n1[1]*RADIO)
+    body_s.velocity =(p_a1-p_b1).normalized()*speed
+    body_s.angular_velocity=speed/RADIO
+
 
     shape_s = pymunk.Circle(body_s, RADIO)
     shape_s.friction = MU
@@ -60,12 +64,14 @@ def setup_simulation():
     space.add(body_s, shape_s)
 
     # --- ARO ---
-    p_a2, u2, n2 = crear_pista(300, 2)
+    p_a2, p_b2, u2, n2 = crear_pista(300, 2)
 
     i_aro = MASA * (RADIO**2)
 
     body_r = pymunk.Body(MASA, i_aro)
-    body_r.position = (p_a2[0] + n2[0]*RADIO, p_a2[1] + n2[1]*RADIO)
+    body_r.position = (p_b2[0] + n2[0]*RADIO, p_b2[1] + n2[1]*RADIO)
+    body_r.velocity =(p_a2-p_b2).normalized()*speed
+    body_r.angular_velocity=speed/RADIO
 
     shape_r = pymunk.Circle(body_r, RADIO)
     shape_r.friction = MU
@@ -147,7 +153,7 @@ def main():
         # --- DIBUJO ---
         screen.fill((255,255,255))
 
-        pygame.draw.line(screen,(255,0,0),(200,0),(200,ALTO),2)
+        #pygame.draw.line(screen,(255,0,0),(200,0),(200,ALTO),2)
 
         space.debug_draw(draw_options)
 

@@ -18,13 +18,13 @@ def main():
 	mass = 1.0
 	size = (40, 40)
 	v0 = 100.0
-	# Radio de la carretera visual
 	R = 700 
 	ancho_carretera = 80 
+	force_magnitude = 13 
+	
+	# Punto de aplicación local
+	punto_local = (10, 10)
 
-	force_magnitude =13 # mass*v0**2/R #(14.285)
-	
-	
 	# Crear la caja
 	inertia = pymunk.moment_for_box(mass, size)
 	body = pymunk.Body(mass, inertia)
@@ -54,13 +54,13 @@ def main():
 
 		# --- FÍSICA ---
 		v = body.velocity
-		v_unit = pymunk.Vec2d(0, 0)
+		force = pymunk.Vec2d(0, 0)
+		
 		if v.length > 0:
 			v_unit = v.normalized()
-			# Fuerza normal a la velocidad (hacia el centro de la curva)
 			f_direction = pymunk.Vec2d(v_unit.y, -v_unit.x)
 			force = f_direction * force_magnitude
-			body.apply_force_at_local_point(force, (0, 0))
+			body.apply_force_at_local_point(force, punto_local)
 
 		space.step(1.0 / 60.0)
 
@@ -72,25 +72,34 @@ def main():
 
 		# Caja
 		pos = body.position
-		angle = math.degrees(body.angle)
+		angle_deg = math.degrees(body.angle)
+		
 		box_surface = pygame.Surface(size, pygame.SRCALPHA)
 		box_surface.fill((50, 150, 250))
 		pygame.draw.rect(box_surface, (255, 255, 255), (0, 0, size[0], size[1]), 2)
 		
-		rotated_box = pygame.transform.rotate(box_surface, -angle)
+		# Dibujamos el punto de aplicación sobre la superficie del cuadrado (local)
+		# Nota: (0,0) local en Pymunk es el centro, en Pygame es la esquina superior izquierda.
+		pygame.draw.circle(box_surface, (255, 50, 50), (punto_local[0] + size[0]//2, punto_local[1] + size[1]//2), 4)
+		
+		rotated_box = pygame.transform.rotate(box_surface, -angle_deg)
 		rect = rotated_box.get_rect(center=(pos.x, pos.y))
 		screen.blit(rotated_box, rect)
 
-		# Vector Fuerza (Rojo)
-		if v.length > 0:
-			pygame.draw.line(screen, (255, 50, 50), pos, pos + (force * 4), 3)
+		# --- VECTOR FUERZA EN EL PUNTO ---
+		if force.length > 0:
+			# Convertimos el punto local (10, 10) a coordenadas de mundo (globales)
+			# Esto tiene en cuenta la posición y la rotación actual del cuerpo
+			punto_mundo = body.local_to_world(punto_local)
+			
+			# Dibujamos la línea de la fuerza partiendo exactamente desde el punto de aplicación
+			pygame.draw.line(screen, (255, 50, 50), punto_mundo, punto_mundo + (force * 4), 3)
 
-		# --- INFORMACIÓN EN PANTALLA ---
-		text_v = font.render(f"Módulo Velocidad: {v.length:.2f} px/s", True, (255, 255, 255))
-		text_dir = font.render(f"Dir (Unitario): [{v_unit.x:.2f}, {v_unit.y:.2f}]", True, (255, 255, 255))
-		
+		# --- INFORMACIÓN ---
+		text_v = font.render(f"Velocidad: {v.length:.2f} px/s", True, (255, 255, 255))
+		text_w = font.render(f"Vel. Angular: {body.angular_velocity:.2f} rad/s", True, (255, 255, 255))
 		screen.blit(text_v, (20, 20))
-		screen.blit(text_dir, (20, 50))
+		screen.blit(text_w, (20, 50))
 
 		pygame.display.flip()
 		clock.tick(60)
